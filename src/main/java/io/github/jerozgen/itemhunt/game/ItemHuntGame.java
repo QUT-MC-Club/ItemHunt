@@ -23,13 +23,14 @@ import net.minecraft.world.dimension.DimensionTypes;
 import org.jetbrains.annotations.Nullable;
 import xyz.nucleoid.fantasy.RuntimeWorldConfig;
 import xyz.nucleoid.fantasy.util.VoidChunkGenerator;
-import xyz.nucleoid.plasmid.game.GameActivity;
-import xyz.nucleoid.plasmid.game.GameOpenContext;
-import xyz.nucleoid.plasmid.game.GameOpenProcedure;
-import xyz.nucleoid.plasmid.game.GameSpace;
-import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
-import xyz.nucleoid.plasmid.game.rule.GameRuleType;
-import xyz.nucleoid.plasmid.game.stats.GameStatisticBundle;
+import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameOpenContext;
+import xyz.nucleoid.plasmid.api.game.GameOpenProcedure;
+import xyz.nucleoid.plasmid.api.game.GameSpace;
+import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
+import xyz.nucleoid.plasmid.api.game.stats.GameStatisticBundle;
+import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.player.PlayerDamageEvent;
 
 import java.util.function.Consumer;
@@ -45,7 +46,7 @@ public record ItemHuntGame(ItemHuntConfig config, GameSpace gameSpace, ServerWor
                 .setSeed(Random.create().nextLong());
         var loadingWorldConfig = new RuntimeWorldConfig()
                 .setDimensionType(DimensionTypes.OVERWORLD)
-                .setGenerator(new VoidChunkGenerator(context.server().getRegistryManager().get(RegistryKeys.BIOME)))
+                .setGenerator(new VoidChunkGenerator(context.server().getRegistryManager().getOrThrow(RegistryKeys.BIOME)))
                 .setWorldConstructor(LazyLoadingWorld::new);
         return context.open((activity) -> {
             var gameSpace = activity.getGameSpace();
@@ -67,7 +68,7 @@ public record ItemHuntGame(ItemHuntConfig config, GameSpace gameSpace, ServerWor
     }
 
     public void setup(GameActivity activity) {
-        activity.listen(PlayerDamageEvent.EVENT, (player, source, amount) -> ActionResult.FAIL);
+        activity.listen(PlayerDamageEvent.EVENT, (player, source, amount) -> EventResult.DENY);
         activity.listen(StatusEffectAddEvent.EVENT, this::onAddStatusEffect);
 
         if (!config.crafting())
@@ -77,7 +78,7 @@ public record ItemHuntGame(ItemHuntConfig config, GameSpace gameSpace, ServerWor
     }
 
     private ActionResult onAddStatusEffect(Entity entity, StatusEffectInstance instance, @Nullable Entity source) {
-        if (entity instanceof ServerPlayerEntity && instance.getEffectType().getCategory() == StatusEffectCategory.HARMFUL) {
+        if (entity instanceof ServerPlayerEntity && instance.getEffectType().value().getCategory() == StatusEffectCategory.HARMFUL) {
             return ActionResult.FAIL;
         }
         return ActionResult.SUCCESS;

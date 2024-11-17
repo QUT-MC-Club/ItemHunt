@@ -9,13 +9,15 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Unit;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.GameMode;
-import xyz.nucleoid.plasmid.game.GameActivity;
-import xyz.nucleoid.plasmid.game.GameCloseReason;
-import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
-import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
-import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
-import xyz.nucleoid.plasmid.game.player.PlayerOffer;
-import xyz.nucleoid.plasmid.game.player.PlayerOfferResult;
+import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameCloseReason;
+import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptor;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptorResult;
+
+import java.util.Set;
 
 public class ItemHuntLoadingPhase extends ItemHuntPhase {
     private final ServerWorld loadingWorld;
@@ -34,16 +36,16 @@ public class ItemHuntLoadingPhase extends ItemHuntPhase {
         bossbar.setTitle(ItemHuntTexts.loading());
         game.world().getChunkManager().addTicket(ChunkTicketType.START, new ChunkPos(game.spawnPos()), 3, Unit.INSTANCE);
 
-        activity.listen(GamePlayerEvents.OFFER, this::offerPlayer);
+        activity.listen(GamePlayerEvents.ACCEPT, this::acceptPlayer);
         activity.listen(GameActivityEvents.TICK, this::tick);
         activity.listen(GameActivityEvents.DESTROY, this::destroy);
     }
 
     private void tick() {
         if (game.world().isChunkLoaded(spawnChunkPos)) {
-            for (var player : game.gameSpace().getPlayers()) {
+            for (var player : game.gameSpace().getPlayers().participants()) {
                 var pos = game.spawnPos().toCenterPos();
-                player.teleport(game.world(), pos.getX(), game.spawnPos().getY(), pos.getZ(), 0, 0);
+                player.teleport(game.world(), pos.getX(), game.spawnPos().getY(), pos.getZ(), Set.of(), 0, 0, false);
                 player.changeGameMode(GameMode.ADVENTURE);
             }
             var activePhase = new ItemHuntWaitingPhase(game);
@@ -51,10 +53,10 @@ public class ItemHuntLoadingPhase extends ItemHuntPhase {
         }
     }
 
-    private PlayerOfferResult offerPlayer(PlayerOffer offer) {
-        return offer.accept(loadingWorld, game.spawnPos().toCenterPos()).and(() -> {
-            offer.player().sendMessage(ItemHuntTexts.description(game), false);
-            offer.player().changeGameMode(GameMode.SPECTATOR);
+    private JoinAcceptorResult acceptPlayer(JoinAcceptor offer) {
+        return offer.teleport(loadingWorld, game.spawnPos().toCenterPos()).thenRunForEach(player -> {
+            player.sendMessage(ItemHuntTexts.description(game), false);
+            player.changeGameMode(GameMode.SPECTATOR);
         });
     }
 

@@ -8,7 +8,7 @@ import net.minecraft.scoreboard.number.NumberFormat;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
-import xyz.nucleoid.plasmid.game.common.widget.GameWidget;
+import xyz.nucleoid.plasmid.api.game.common.widget.GameWidget;
 
 import java.util.ArrayList;
 import java.util.function.Consumer;

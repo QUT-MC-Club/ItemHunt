@@ -6,6 +6,8 @@ import io.github.jerozgen.itemhunt.game.ItemHuntGame;
 import io.github.jerozgen.itemhunt.game.ItemHuntSidebarWidget;
 import io.github.jerozgen.itemhunt.game.ItemHuntTexts;
 import io.github.jerozgen.itemhunt.game.ObtainedItemsGui;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.NbtComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.boss.BossBar;
@@ -21,16 +23,17 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import net.minecraft.world.GameMode;
-import xyz.nucleoid.plasmid.game.GameActivity;
-import xyz.nucleoid.plasmid.game.GameCloseReason;
-import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
-import xyz.nucleoid.plasmid.game.common.widget.BossBarWidget;
-import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
-import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
-import xyz.nucleoid.plasmid.game.player.PlayerOffer;
-import xyz.nucleoid.plasmid.game.player.PlayerOfferResult;
-import xyz.nucleoid.plasmid.game.stats.StatisticKey;
-import xyz.nucleoid.plasmid.game.stats.StatisticKeys;
+import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameCloseReason;
+import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.api.game.common.widget.BossBarWidget;
+import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptor;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptorResult;
+import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
+import xyz.nucleoid.plasmid.api.game.stats.StatisticKey;
+import xyz.nucleoid.plasmid.api.game.stats.StatisticKeys;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -62,7 +65,8 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
 
         activity.listen(GameActivityEvents.ENABLE, this::start);
         activity.listen(GameActivityEvents.TICK, this::tick);
-        activity.listen(GamePlayerEvents.OFFER, this::offerPlayer);
+        activity.listen(GamePlayerEvents.OFFER, JoinOffer::acceptSpectators);
+        activity.listen(GamePlayerEvents.ACCEPT, this::acceptPlayer);
         activity.listen(GamePlayerEvents.ADD, this::addPlayer);
         activity.listen(GamePlayerEvents.LEAVE, this::removePlayer);
 
@@ -70,9 +74,9 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
     }
 
     private void start() {
-        singleplayer = game.gameSpace().getPlayers().size() == 1;
+        singleplayer = game.gameSpace().getPlayers().participants().size() == 1;
 
-        for (var player : game.gameSpace().getPlayers()) {
+        for (var player : game.gameSpace().getPlayers().participants()) {
             player.getInventory().clear();
             player.playerScreenHandler.getCraftingInput().clear();
             player.currentScreenHandler.setCursorStack(ItemStack.EMPTY);
@@ -87,7 +91,7 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
 
             game.config().startItems().ifPresent(stacks -> stacks.forEach(stack -> {
                 var stackCopy = stack.copy();
-                stackCopy.getOrCreateNbt().putBoolean(START_ITEM_NBT_KEY, true);
+                stackCopy.set(DataComponentTypes.CUSTOM_DATA, NbtComponent.DEFAULT);
                 player.getInventory().insertStack(stackCopy);
             }));
 
@@ -97,16 +101,16 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
             game.stat(stats -> stats.forPlayer(player).increment(StatisticKeys.GAMES_PLAYED, 1));
         }
 
-        game.world().getEntitiesByType(EntityType.ITEM, Entity::isAlive).forEach(Entity::kill);
+        game.world().getEntitiesByType(EntityType.ITEM, Entity::isAlive).forEach(x -> x.kill(game.world()));
         game.world().getWorldBorder().setSize(99999);
 
         startTime = Util.getMeasuringTimeMs();
         endTime = startTime + TimeUnit.SECONDS.toMillis(game.config().duration());
     }
 
-    private PlayerOfferResult offerPlayer(PlayerOffer offer) {
-        return offer.accept(game.world(), game.spawnPos().toCenterPos()).and(() -> {
-            offer.player().changeGameMode(GameMode.SPECTATOR);
+    private JoinAcceptorResult acceptPlayer(JoinAcceptor offer) {
+        return offer.teleport(game.world(), game.spawnPos().toCenterPos()).thenRunForEach(player -> {
+            player.changeGameMode(GameMode.SPECTATOR);
         });
     }
 
@@ -133,7 +137,7 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
 
             if (secondsLeft <= 10) {
                 if (secondsLeft > 0) for (var player : game.gameSpace().getPlayers()) {
-                    player.playSound(SoundEvents.UI_BUTTON_CLICK.value(), SoundCategory.PLAYERS, .6f, 1);
+                    player.playSoundToPlayer(SoundEvents.UI_BUTTON_CLICK.value(), SoundCategory.PLAYERS, .6f, 1);
                 }
                 else this.end();
             }
@@ -152,7 +156,7 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
             var winnerItems = new ArrayList<>(itemsCollectedByPlayers.get(winner));
             var guiTitleText = ItemHuntTexts.guiTitle(winner, server);
             var winText = ItemHuntTexts.win(winners, maxSize, singleplayer, server);
-            for (var player : game.gameSpace().getPlayers()) {
+            for (var player : game.gameSpace().getPlayers().participants()) {
                 var isWinner = player.getUuid().equals(winner);
                 if (singleplayer) {
                     if (isWinner) player.sendMessage(ItemHuntTexts.winSingleplayer(maxSize));
@@ -172,7 +176,7 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
     private void onInventoryChanged(ServerPlayerEntity player, PlayerInventory inventory, ItemStack stack) {
         if (!itemsCollectedByPlayers.containsKey(player.getUuid())) return;
         if (stack.isEmpty()) return;
-        if (stack.getOrCreateNbt().getBoolean(START_ITEM_NBT_KEY)) return;
+        if (stack.contains(DataComponentTypes.CUSTOM_DATA)) return;
 
         var collectedItems = itemsCollectedByPlayers.get(player.getUuid());
         var item = stack.getItem();
@@ -183,7 +187,7 @@ public class ItemHuntActivePhase extends ItemHuntPhase {
                     new TitleFadeS2CPacket(0, 20, 10),
                     new TitleS2CPacket(Text.of("")),
                     new SubtitleS2CPacket(ItemHuntTexts.itemObtained(item)))));
-            player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.PLAYERS, 1, 1);
+            player.playSoundToPlayer(SoundEvents.BLOCK_NOTE_BLOCK_BELL.value(), SoundCategory.PLAYERS, 1, 1);
         }
     }
 }

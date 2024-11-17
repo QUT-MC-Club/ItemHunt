@@ -22,7 +22,7 @@ public class LazyLoadingWorld extends RuntimeWorld {
 
     protected LazyLoadingWorld(MinecraftServer server, RegistryKey<World> registryKey, RuntimeWorldConfig config, Style style) {
         super(server, registryKey, config, style);
-        var biome = server.getRegistryManager().get(RegistryKeys.BIOME).getEntry(BiomeKeys.THE_VOID).get();
+        var biome = server.getRegistryManager().getOrThrow(RegistryKeys.BIOME).getOrThrow(BiomeKeys.THE_VOID);
         this.chunk = new EmptyChunk(this, ChunkPos.ORIGIN, biome) {
             @Override
             public BlockState getBlockState(BlockPos pos) {

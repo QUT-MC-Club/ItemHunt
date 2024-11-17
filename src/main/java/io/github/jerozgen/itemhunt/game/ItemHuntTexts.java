@@ -6,6 +6,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.text.Texts;
 import net.minecraft.util.Formatting;
+import xyz.nucleoid.plasmid.api.game.config.GameConfig;
 
 import java.util.List;
 import java.util.UUID;
@@ -14,11 +15,11 @@ public final class ItemHuntTexts {
     public static final int ACCENT_COLOR = 0xaeffda;
 
     public static MutableText loading() {
-        return Text.translatable("menu.generatingLevel");
+        return Text.translatable("multiplayer.downloadingTerrain");
     }
 
     public static MutableText description(ItemHuntGame game) {
-        var gameName = game.gameSpace().getMetadata().sourceConfig().name();
+        var gameName = GameConfig.name(game.gameSpace().getMetadata().sourceConfig());
         return Text.empty().formatted(Formatting.GRAY)
                 .append("\n").append(gameName.copy()
                         .formatted(Formatting.BOLD)

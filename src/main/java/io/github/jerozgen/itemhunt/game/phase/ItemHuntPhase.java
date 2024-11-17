@@ -1,7 +1,7 @@
 package io.github.jerozgen.itemhunt.game.phase;
 
 import io.github.jerozgen.itemhunt.game.ItemHuntGame;
-import xyz.nucleoid.plasmid.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameActivity;
 
 public abstract class ItemHuntPhase {
     protected final ItemHuntGame game;

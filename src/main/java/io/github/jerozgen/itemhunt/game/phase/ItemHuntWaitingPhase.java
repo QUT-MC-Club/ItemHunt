@@ -5,13 +5,14 @@ import io.github.jerozgen.itemhunt.game.ItemHuntTexts;
 import net.minecraft.network.packet.s2c.play.WorldBorderInitializeS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.GameMode;
-import xyz.nucleoid.plasmid.game.GameActivity;
-import xyz.nucleoid.plasmid.game.GameResult;
-import xyz.nucleoid.plasmid.game.common.GameWaitingLobby;
-import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
-import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
-import xyz.nucleoid.plasmid.game.player.PlayerOffer;
-import xyz.nucleoid.plasmid.game.player.PlayerOfferResult;
+import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameResult;
+import xyz.nucleoid.plasmid.api.game.common.GameWaitingLobby;
+import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptor;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptorResult;
+import xyz.nucleoid.plasmid.api.game.player.JoinIntent;
 
 public class ItemHuntWaitingPhase extends ItemHuntPhase {
 
@@ -24,7 +25,7 @@ public class ItemHuntWaitingPhase extends ItemHuntPhase {
         GameWaitingLobby.addTo(activity, game.config().playerConfig());
 
         activity.listen(GameActivityEvents.ENABLE, this::start);
-        activity.listen(GamePlayerEvents.OFFER, this::offerPlayer);
+        activity.listen(GamePlayerEvents.ACCEPT, this::acceptPlayers);
         activity.listen(GamePlayerEvents.ADD, this::addPlayer);
         activity.listen(GameActivityEvents.REQUEST_START, this::requestStart);
     }
@@ -37,10 +38,10 @@ public class ItemHuntWaitingPhase extends ItemHuntPhase {
         worldBorder.setWarningBlocks(-100);
     }
 
-    private PlayerOfferResult offerPlayer(PlayerOffer offer) {
-        return offer.accept(game.world(), game.spawnPos().toCenterPos()).and(() -> {
-            offer.player().changeGameMode(GameMode.ADVENTURE);
-            offer.player().sendMessage(ItemHuntTexts.description(game), false);
+    private JoinAcceptorResult acceptPlayers(JoinAcceptor offer) {
+        return offer.teleport(game.world(), game.spawnPos().toCenterPos()).thenRunForEach((player, intent) -> {
+            player.changeGameMode(intent == JoinIntent.SPECTATE ? GameMode.SPECTATOR : GameMode.ADVENTURE);
+            player.sendMessage(ItemHuntTexts.description(game), false);
         });
     }
 

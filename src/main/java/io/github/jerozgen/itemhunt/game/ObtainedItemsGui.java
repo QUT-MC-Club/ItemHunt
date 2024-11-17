@@ -30,7 +30,7 @@ public class ObtainedItemsGui extends SimpleGui {
         this.maxPage = (items.size() - 1) / (9 * 5);
         this.previousPageButtonBuilder = new GuiElementBuilder(Items.PLAYER_HEAD)
                 .setName(ItemHuntTexts.guiPreviousPage())
-                .hideFlags()
+                .hideDefaultTooltip()
                 .setSkullOwner(PREVIOUS_PAGE_TEXTURE)
                 .setCallback(() -> {
                     if (page > 0) {
@@ -40,7 +40,7 @@ public class ObtainedItemsGui extends SimpleGui {
                 });
         this.nextPageButtonBuilder = new GuiElementBuilder(Items.PLAYER_HEAD)
                 .setName(ItemHuntTexts.guiNextPage())
-                .hideFlags()
+                .hideDefaultTooltip()
                 .setSkullOwner(NEXT_PAGE_TEXTURE)
                 .setCallback(() -> {
                     if (page < maxPage) {
