@@ -34,7 +34,7 @@ public class ItemHuntLoadingPhase extends ItemHuntPhase {
         var widgets = GlobalWidgets.addTo(activity);
         var bossbar = widgets.addBossBar(Text.empty(), BossBar.Color.YELLOW, BossBar.Style.PROGRESS);
         bossbar.setTitle(ItemHuntTexts.loading());
-        game.world().getChunkManager().addTicket(ChunkTicketType.START, new ChunkPos(game.spawnPos()), 3, Unit.INSTANCE);
+        game.world().getChunkManager().addTicket(ChunkTicketType.START, new ChunkPos(game.spawnPos()), 2, Unit.INSTANCE);
 
         activity.listen(GamePlayerEvents.ACCEPT, this::acceptPlayer);
         activity.listen(GameActivityEvents.TICK, this::tick);
